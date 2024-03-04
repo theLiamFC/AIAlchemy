@@ -3,42 +3,43 @@ import time
 import sys
 
 
-def serial_read():
-    reply = b""
-    while ser.in_waiting:
-        reply += ser.read(ser.in_waiting)
+class serial_interface:
+
+    def __init__(self, port):
+        self.port = port
+        self.ser = serial.Serial(
+            port=self.port,  ## <----------- REPLACE with your SPIKE's port from!!!##
+            baudrate=115200,
+            parity=serial.PARITY_NONE,
+            stopbits=serial.STOPBITS_ONE,
+            bytesize=serial.EIGHTBITS,
+        )
+
+        # BUG catch serial not open error
+        self.ser.isOpen()
+        self.ser.write(b"\x03")
+        # self.serial_write(b"\x05")
+
+        print(self.serial_read())
+
+
+    def serial_read(self):
+        reply = b""
+        while self.ser.in_waiting:
+            reply += self.ser.read(self.ser.in_waiting)
+            time.sleep(0.1)
+        return reply.decode()
+
+
+    def serial_write(self, string):
+        self.ser.write(string + b"\r\n")
         time.sleep(0.1)
-    return reply
+        return self.serial_read()
 
 
-def serial_write(string):
-    ser.write(string + b"\r\n")
-    time.sleep(0.1)
-    return serial_read().decode()
+    def test_serial(self):
 
-
-# Liam's port:
-portL = "/dev/cu.usbmodem3356396133381"
-# Jesse's port:
-portJ = "COM13"
-
-ser = serial.Serial(
-    port=portL,  ## <----------- REPLACE with your SPIKE's port from!!!##
-    baudrate=115200,
-    parity=serial.PARITY_NONE,
-    stopbits=serial.STOPBITS_ONE,
-    bytesize=serial.EIGHTBITS,
-)
-
-# BUG catch serial not open error
-ser.isOpen()
-ser.write(b"\x03")
-print(serial_read())
-
-
-def test_serial():
-
-    test = """import motor
+        test = """import motor
 from hub import port
 import time
 i = 0
@@ -53,7 +54,7 @@ i = i + 1"""
     # '''for i in range(10):
     #     print("hello world")'''
 
-    test = """import motor
+        test = """import motor
 from hub import port
 import runloop
 import time
@@ -71,14 +72,14 @@ await motor.run_for_degrees(port.B,360, 75)
 runloop.run(main())
 """
 
-    # reply = serial_write(bytes("\x05", 'utf-8'))
-    # print(reply)
+        # reply = serial_write(bytes("\x05", 'utf-8'))
+        # print(reply)
 
-    test = test.replace("\n", "\r\n")
-    reply = serial_write(bytes(test, "utf-8"))
-    print(reply)
-    time.sleep(1)
-    # reply = serial_write(bytes("\x03", 'utf-8'))
-    print(reply)
+        test = test.replace("\n", "\r\n")
+        reply = self.serial_write(bytes(test, "utf-8"))
+        print(reply)
+        time.sleep(1)
+        # reply = serial_write(bytes("\x03", 'utf-8'))
+        print(reply)
 
-    sys.exit()
+        sys.exit()
