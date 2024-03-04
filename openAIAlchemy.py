@@ -30,8 +30,6 @@ import base64
 #        search file for "FREEZING" to find occurances
 # - BUG: chatGPT indentaton does not mesh well with REPL
 #        might be best to always parse the response and delete all spaces after new line if possible
-# - BUG: code does not seem to be properly uploaded to SPIKE when running on Liam's Mac
-#
 
 
 class openAIAlchemy:
@@ -52,8 +50,9 @@ class openAIAlchemy:
         else:
             self.thread_id = thread_id
 
+    # Public Function
     # Change model of current assistant
-    # "gpt-4", gpt
+    # Options: "gpt-4", "gpt-3.5"
     def changeModel(self, modelNum):
         models = ["gpt-4-turbo-preview", "gpt-4", "gpt-3.5-turbo-0125"]
         self.client.beta.assistants.update(
@@ -103,7 +102,8 @@ class openAIAlchemy:
         messages = self.client.beta.threads.messages.list(self.thread_id)
         return messages.data[0].content[0].text.value
 
-    # Start and or manage run of current thread
+    # Private Function
+    # Start and / or manage run of current thread
     async def __runManager(self):
         if self.run_id == None:  # check for existing run
             if self.debug:
