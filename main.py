@@ -15,10 +15,6 @@ aa_id = "asst_8WN5ksXpnNaBeAr1IKrLq4yd"
 ### General test thread
 # thread_id = "thread_UbU1hougFO6WE4kJCmK0ylRR"
 
-# response = openAI_assistant.callChad(
-#     bb_id, thread_id, "what is the weather in lexington MA"
-# )
-
 
 async def interface_loop(ai_interface, serial_interface):
     user_prompt = input(
@@ -43,11 +39,19 @@ if __name__ == "__main__":
     port_l = "/dev/cu.usbmodem3356396133381"
     port_j = "COM13"
 
-    serial = serial_interface.serial_interface(port_j)
+    # serial = serial_interface.serial_interface(port_l)
+    serial = "fake_serial"
     # serial.test_serial()
-    
+
     ai_interface = openAIAlchemy(aa_id, serial, debug=True, verbose=True)
+    task = asyncio.run(ai_interface.change_model(2))
     try:
         asyncio.run(interface_loop(ai_interface, serial))
+    except Exception as e:
+        if e == "UnresponsiveAPI":
+            print(
+                "The OpenAI API is taking longer than usual to respond and so we cannot complete your request."
+            )
     finally:
-        ai_interface.close()
+        asyncio.run(ai_interface.close())
+        sys.exit()

@@ -1,9 +1,9 @@
 from openai import OpenAI
+from openai import AsyncOpenAI
 import cv2 as cv
 import time
 import asyncio
 import json
-import sys
 import base64
 
 ### private variables
@@ -13,34 +13,50 @@ import base64
 # run_id
 # queryDict
 
-### ACTION ITEMS ### NOW IN NOTION
-# - ALWAYS: expand json file with more SPIKE syntax
-# - ALWAYS: improve commenting and readability
-#
-# - TODO: !!! handle errors and hanging api calls
-# - TODO: !!! Clean up text output and make more presentable
-# - TODO: tailor assistant instructions to get better function calling behavior
-# - TODO: create functionality for a debug log exported as txt file
-#
-# - BUG: json.decoder.JSONDecodeError: Invalid \escape: line 2 column 41 (char 42)
-#        occurs in __function_manager() on line 174
-# - BUG: freezing after "Run in Progress" and "Submitting tool outputs"
-#        seems to be an issue on the openAI end
-#        search file for "FREEZING" to find occurances
-# - BUG: chatGPT indentaton does not mesh well with REPL
-#        might be best to always parse the response and delete all spaces after new line if possible
-# - BUG: code does not seem to be properly uploaded to SPIKE when running on Liam's Mac
-#
+
+# Allow for raising custom errors
+# Use: raise CustomError("Custom Error Message")
+class CustomError(Exception):
+    pass
+
+
+# Timeout Wrapper Function
+# TODO Should add logging to this, how tho? idk outside of class
+def api_timeout(tries=5, exp=2, start=1):
+
+    def get_call(func):
+
+        async def theCall(*args, **kwargs):
+            for i in range(tries):
+                begin = time.time()
+                try:
+                    print("entered try")
+                    return await asyncio.wait_for(
+                        func(*args, **kwargs), timeout=((i + start) ** exp)
+                    )
+                except asyncio.TimeoutError as e:
+                    print(e)
+                finally:
+                    end = time.time()
+                    print(f"API Call #{i} Duration: ", end - begin)
+                print("Killed a call")
+            raise CustomError("UnresponsiveAPI")
+
+        return theCall
+
+    return get_call
 
 
 class openAIAlchemy:
     def __init__(
         self, assistant_id, serial, thread_id=None, debug=False, verbose=False
     ):
-        self.client = OpenAI()
+        # self.client = OpenAI()
+        self.client = AsyncOpenAI()
         # self.kill_all_runs()  #  causes errors
         self.assistant_id = assistant_id
         self.serial_interface = serial
+        self.thread_id = thread_id
         self.debug = debug
         self.verbose = verbose
         self.run_id = None
@@ -52,70 +68,77 @@ class openAIAlchemy:
         formatted_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
 
         self.log_print(f"\n\n\nPROGRAM OUTPUT FROM {formatted_time}\n")
+        asyncio.run(self.get_thread())
 
-        if thread_id == None:
-            newThread = self.client.beta.threads.create()
+    ######################################
+    ########## PUBLIC FUNCTIONS ##########
+    ######################################
+
+    # Public method to start the OpenAI run asynchronously
+    async def run(self, message):
+        await self.add_message(message)
+        result = await self.__run_manager()  # Await the result from __run_manager
+        return result
+
+    async def get_thread(self):
+        if self.thread_id == None:
+            newThread = await self.client.beta.threads.create()
             self.thread_id = newThread.id
             self.debug_print(f"THREAD_ID: {self.thread_id}")
         else:
-            self.thread_id = thread_id
+            self.thread_id = self.thread_id
 
-    # Public Function
     # Change model of current assistant
-    # "gpt-4", gpt
-    def change_model(self, modelNum):
+    async def change_model(self, modelNum):
         models = ["gpt-4-turbo-preview", "gpt-4", "gpt-3.5-turbo-0125"]
-        self.client.beta.assistants.update(
-            self.assistant_id,
-            model=models[modelNum],
+        await asyncio.wait_for(
+            self.client.beta.assistants.update(
+                self.assistant_id,
+                model=models[modelNum],
+            ),
+            timeout=5,
         )
 
-    # Public Debugging Function
     # Retreive assistants for purpose of finding IDs
-    def get_assistants(self):
-        my_assistants = self.client.beta.assistants.list(
+    async def get_assistants(self):
+        my_assistants = await self.client.beta.assistants.list(
             order="desc",
             limit="20",
         )
         return my_assistants.data
 
-    # Public Debugging Function
     # Retrieve all runs in a current thread
-    def get_runs(self):
-        runs = self.client.beta.threads.runs.list(self.thread_id)
+    async def get_runs(self):
+        runs = await self.client.beta.threads.runs.list(self.thread_id)
         return runs
 
-    # Public Debugging Function
     # Kills all runs that are in progress or requiring action
-    def kill_all_runs(self):
-        runs = self.get_runs()
+    async def kill_all_runs(self):
+        runs = await self.get_runs()
         for run in runs.data:
             if run.status == "in_progress" or run.status == "requires_action":
-                self.client.beta.threads.runs.cancel(
+                await self.client.beta.threads.runs.cancel(
                     thread_id=self.thread_id, run_id=run.id
                 )
 
-    # Public Debugging Function
-    # Add message to current thread
-    def add_message(self, message):
-        self.debug_print("Adding message")
-        self.client.beta.threads.messages.create(
-            self.thread_id,
-            role="user",
-            content=message,
-        )
-
-    # Public Debugging Function
     # Get most recent message from the thread
-    def get_message(self):
-        messages = self.client.beta.threads.messages.list(self.thread_id)
+    async def get_message(self):
+        messages = await self.client.beta.threads.messages.list(self.thread_id)
         return messages.data[0].content[0].text.value
+
+    #######################################
+    ########## PRIVATE FUNCTIONS ##########
+    #######################################
+
+    # --------------------------------#
+    ########## RUN LIFECYCLE ##########
+    # --------------------------------#
 
     # Start and or manage run of current thread
     async def __run_manager(self):
         if self.run_id == None:  # check for existing run
             self.debug_print("Creating new run")
-            run = self.client.beta.threads.runs.create(
+            run = await self.client.beta.threads.runs.create(
                 thread_id=self.thread_id, assistant_id=self.assistant_id
             )  # BUG FREEZING HERE
             self.run_id = run.id
@@ -124,13 +147,15 @@ class openAIAlchemy:
         self.debug_print("Run in progress")
         status = "in_progress"
 
+        status = await self.get_run_status()
+
         # entering status monitoring loop
         # exits upon completion, failure, or tool call response required
         last_time = time.time()
         while status not in ["completed", "failed", "requires_action"]:
-            status = self.client.beta.threads.runs.retrieve(
-                thread_id=self.thread_id, run_id=self.run_id
-            ).status  # BUG this api call seems to be FREEZING code occasionally
+            status = (
+                await self.get_run_status()
+            )  # BUG this api call seems to be FREEZING code occasionally
             if self.debug and time.time() - last_time > 5:
                 self.debug_print(f"Longer than normal runtime: {status}")
                 last_time = time.time()
@@ -140,19 +165,14 @@ class openAIAlchemy:
 
         # run no longer in progress, handle each possible run condition
         if status == "requires_action":  # delegate tool calls to __function_manager()
-            calls = self.client.beta.threads.runs.retrieve(
-                thread_id=self.thread_id, run_id=self.run_id
-            ).required_action  # also FREEZING after this call
-            self.__function_manager(calls)
+            response = await self.get_run()  # also FREEZING after this call
+            calls = response.required_action
+            await self.__function_manager(calls)
             return await self.__run_manager()
         elif status == "completed":  # return response
             self.run_id = None
-            return (
-                self.client.beta.threads.messages.list(self.thread_id)
-                .data[0]
-                .content[0]
-                .text.value
-            )
+            response = await self.get_response()
+            return response.data[0].content[0].text.value
         elif status == "failed":  # something went wrong
             # BUG should probably handle this better
             # and retry run up to max attempts
@@ -160,13 +180,13 @@ class openAIAlchemy:
             self.run_id = None
             self.reg_print("Run failed")
             self.reg_print(
-                self.client.beta.threads.runs.retrieve(
+                await self.client.beta.threads.runs.retrieve(
                     thread_id=self.thread_id, run_id=run.id
                 )
             )
 
     # Handle tool call responses
-    def __function_manager(self, calls):
+    async def __function_manager(self, calls):
         self.debug_print("Managing functions")
 
         # empty array to hold multiple tool calls
@@ -182,13 +202,7 @@ class openAIAlchemy:
             try:
                 args = json.loads(toolCall.function.arguments)
             except:
-                self.debug_print("Error loading json, retyring")  # untested
-                self.client.beta.threads.runs.submit_tool_outputs(
-                    thread_id=self.thread_id,
-                    run_id=self.run_id,
-                    tool_outputs=tool_outputs,
-                )
-                return
+                self.debug_print("Error loading json, retrying")  # untested
             # handling for each available function call
             if name == "get_feedback":
                 # print arg to command line and get written response from human
@@ -199,8 +213,6 @@ class openAIAlchemy:
                 self.debug_print(f"Querying documentation for: {args['query'].lower()}")
 
                 # search queryDict json file for requested term
-                # BUG if chat has issues requesting exact term we could introduce
-                # a semantic relation search upon 0 zero result
                 for aClass in self.queryDict["class"]:
                     if aClass["name"] == args["query"].lower():
                         query_response = aClass
@@ -226,27 +238,31 @@ class openAIAlchemy:
                 self.debug_print(self.__print_break("RUNNING CODE", code))
 
                 # send code to serial and get repl output
-                # self.debug_print(self.__print_break("SERIAL OUTPUT", serial_response))
                 self.debug_print("\n================== SERIAL OUPUT ==================")
-                serial_response = self.serial_interface.serial_write(
-                    bytes(code, "utf-8")
-                )
+                ### COMMENTED OUT FOR NON SERIAL TESTING !!!
+                # serial_response = self.serial_interface.serial_write(
+                #     bytes(code, "utf-8")
+                # )
+                serial_response = input(
+                    "enter fake serial response"
+                )  # <-- just for testing without robot
                 self.debug_print(serial_response)
                 # send repl output back to assistant
 
+                ### COMMENTED OUT FOR NON SERIAL TESTING !!!
                 # kill code after runtime duration
-                last_time = time.time()
-                while time.time() < last_time + runtime:
-                    temp_response = str(self.serial_interface.serial_read())
-                    if temp_response != "":
-                        self.debug_print(temp_response)
-                        serial_response = serial_response + "\n" + temp_response
-                    time.sleep(0.5)
+                # last_time = time.time()
+                # while time.time() < last_time + runtime:
+                #     temp_response = str(self.serial_interface.serial_read())
+                #     if temp_response != "":
+                #         self.debug_print(temp_response)
+                #         serial_response = serial_response + "\n" + temp_response
+                #     time.sleep(0.5)
 
                 tool_outputs.append({"tool_call_id": id, "output": serial_response})
                 self.debug_print("==================== END ====================")
 
-                self.serial_interface.serial_write(bytes("\x03", "utf-8"))
+                # self.serial_interface.serial_write(bytes("\x03", "utf-8"))
                 self.debug_print("Program ended")
             elif name == "get_visual_feedback":
                 # BUG need to time running code with photos
@@ -256,11 +272,7 @@ class openAIAlchemy:
 
                 self.debug_print(f"Getting visual feedback for: {query.lower()}")
 
-                img_response = (
-                    self.__img_collection(query, num_images, interval)
-                    .choices[0]
-                    .message.content
-                )
+                img_response = await self.__img_collection(query, num_images, interval)
 
                 # attach response to tool outputs
                 self.debug_print(img_response)
@@ -270,16 +282,74 @@ class openAIAlchemy:
 
         # submit all collected tool call responses
         self.verbose_print(f"Submitting tool outputs: {tool_outputs}")
-        self.client.beta.threads.runs.submit_tool_outputs(
+        await self.client.beta.threads.runs.submit_tool_outputs(
             thread_id=self.thread_id, run_id=self.run_id, tool_outputs=tool_outputs
         )  # BUG also FREEZING here
         self.debug_print("Done submitting outputs")
 
+    # ----------------------------#
+    ########## API CALLS ##########
+    # ----------------------------#
+
+    # API: Add message to thread
+    @api_timeout(tries=5, exp=1.5, start=3)
+    async def add_message(self, message):
+        self.debug_print("Adding message")
+        await self.client.beta.threads.messages.create(
+            self.thread_id,
+            role="user",
+            content=message,
+        )
+
+    # API: Get run status
+    @api_timeout(tries=5, exp=2, start=1)
+    async def get_run_status(self):
+        response = await self.client.beta.threads.runs.retrieve(
+            thread_id=self.thread_id, run_id=self.run_id
+        )
+        return response.status
+
+    # API: Get run
+    @api_timeout(tries=5, exp=2, start=1)
+    async def get_run(self):
+        response = await self.client.beta.threads.runs.retrieve(
+            thread_id=self.thread_id, run_id=self.run_id
+        )
+        return response
+
+    # API: Get response
+    @api_timeout(tries=5, exp=2, start=1)
+    async def get_response(self):
+        response = await self.client.beta.threads.messages.list(self.thread_id)
+        return response
+
+    # API: Get image description
+    @api_timeout(tries=2, exp=1.5, start=20)
+    async def get_img_response(self, content):
+        response = await self.client.chat.completions.create(
+            model="gpt-4-vision-preview",
+            messages=[
+                {
+                    "role": "user",
+                    "content": content,
+                }
+            ],
+            max_tokens=300,
+        )
+        img_response = response.choices[0].message.content
+        return img_response
+
+    # -----------------------------------#
+    ########## IMAGE COLLECTION ##########
+    # -----------------------------------#
+
+    # IMG: encode jpg file to base64
     def __encode_image(self, image_path):
         with open(image_path, "rb") as image_file:
             return base64.b64encode(image_file.read()).decode("utf-8")
 
-    def __img_collection(self, query, num, interval):
+    # IMG: capture and package images
+    async def __img_collection(self, query, num, interval):
         # collect images from webcam
         self.debug_print("TAKING IMAGES IN 3 SECONDS")
         time.sleep(3)
@@ -292,6 +362,8 @@ class openAIAlchemy:
             url = f"data:image/jpeg;base64,{base64_image}"
             images.append(url)
             time.sleep(interval)
+
+        self.debug_print("Took Photos")
 
         # format images and query together for api call
         content = []
@@ -307,20 +379,13 @@ class openAIAlchemy:
             content.append(new_image)
 
         # send images and query to vision api
-        response = self.client.chat.completions.create(
-            model="gpt-4-vision-preview",
-            messages=[
-                {
-                    "role": "user",
-                    "content": content,
-                }
-            ],
-            max_tokens=300,
-        )
-        self.debug_print("Sent photos")
+        response = await self.get_img_response(content)
         return response
 
-    # Formtting functions
+    # ------------------------------------#
+    ########## OUTPUT FORMATTING ##########
+    # ------------------------------------#
+
     def extract_code(self, result):
         if result.find("```") == -1:
             return ("", result)
@@ -363,15 +428,13 @@ class openAIAlchemy:
         self.this_log.write("\n" + str(text))
         self.all_log.write("\n" + str(text))
 
-    # Public method to start the OpenAI run asynchronously
-    async def run(self, message):
-        self.add_message(message)
-        result = await self.__run_manager()  # Await the result from __run_manager
-        return result
+    # --------------------------------#
+    ########## DECONSTRUCTOR ##########
+    # --------------------------------#
 
-    def close(self):
+    async def close(self):
         self.debug_print("Closing")
         self.this_log.close()
         self.all_log.close()
-        self.kill_all_runs()
+        await self.kill_all_runs()
         print("Files closed and runs killed")
