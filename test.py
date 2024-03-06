@@ -1,6 +1,3 @@
-from openai import OpenAI
-import json
-
 ### ByteBard_XML ID
 bb_id = "asst_CFsqmgnJhalDKnZvyjGKOtg7"
 ### PrimeBot ID
@@ -11,266 +8,59 @@ aa_id = "asst_8WN5ksXpnNaBeAr1IKrLq4yd"
 ### General test thread
 thread_id = "thread_UbU1hougFO6WE4kJCmK0ylRR"
 
-# response = openAI_assistant.callChad(
-#     bb_id, thread_id, "what is the weather in lexington MA"
-# )
+import asyncio
+import os
+from openai import AsyncOpenAI
+
+client = AsyncOpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 
-# AI_interface = openAIAlchemy.openAIAlchemy(
-#     aa_id, thread_id="thread_1GwlxP7aLrP4rQXnM2qyQmhY", debug=True
-# )
-# AI_interface.killAllRuns()
-# # # print(AI_interface.getRuns())
+async def status_check(thread_id, run_id, queue):
+    while True:
+        try:
+            # Fetch the status of the assistant run
+            assistant_run = await client.beta.threads.runs.retrieve(
+                thread_id=thread_id, run_id=run_id
+            )
+            status = assistant_run.status
+            await queue.put(status)  # Put the status into the queue for processing
+        except Exception as e:
+            print(f"An error occurred while fetching the status: {e}")
 
-# AI_interface.addMessage(
-#     "write code that will drive a car and move around obstacles using an ultrasonic sensor. make sure to check with a human to ensure the car is driving correctly"
-# )
-# print(AI_interface.getMessage())
+        await asyncio.sleep(1)  # Wait for 1 second before the next status check
 
-# simpleDict = {
-#     "name": "Liam Campbell",
-#     "address": {"street": "23 Edison Ave", "city": "Medford", "zipcode": "02144"},
-# }
 
-# simpleJson = json.dumps(simpleDict)
-# print(simpleJson)
+async def process_responses(queue, tasks):
+    non_final_statuses = ["queued", "in_progress", "requires_action"]
+    while True:
+        status = await queue.get()
+        print(f"Received status: {status}")
+        if status not in non_final_statuses:
+            # Cancel all outstanding tasks
+            for task in tasks:
+                task.cancel()
+            print(f"Final status received: {status}. Proceeding to the next step.")
+            break
 
-# complexDict = {
-#     "codingGuide": {
-#         "class": [
-#             {
-#                 "name": "motor",
-#                 "description": "a class that allows access to spike prime motors",
-#                 "initialization": "none",
-#                 "required imports": "import motor \n from hub import port",
-#                 "function": {
-#                     "name": "Run motor for degrees",
-#                     "syntax": "motor.run_for_degrees(port.B, 360, 75)",
-#                     "parameters": {
-#                         "parameter": [
-#                             {
-#                                 "name": "Port",
-#                                 "description": "Port of spike prime to which motor is connected",
-#                                 "values": "port.A,port.B,port.C,port.D,port.E,port.F",
-#                             },
-#                             {
-#                                 "name": "Degrees",
-#                                 "description": "Degrees for which the motor should turn.",
-#                                 "values": "any integer",
-#                             },
-#                             {
-#                                 "name": "Speed",
-#                                 "description": "Speed at which the motor should run in degrees per second.",
-#                                 "values": "any integer",
-#                             },
-#                         ]
-#                     },
-#                 },
-#             },
-#             {
-#                 "name": "color_sensor",
-#                 "description": "a class that allows access to spike prime color sensors",
-#                 "initialization": "none",
-#                 "required imports": "from hub import color_sensor \n from hub import port",
-#                 "function": [
-#                     {
-#                         "name": "Color",
-#                         "syntax": "color_sensor.color(port.A)",
-#                         "parameters": {
-#                             "parameter": {
-#                                 "name": "Port",
-#                                 "description": "Port of spike prime to which color sensor is connected",
-#                                 "values": "port.A,port.B,port.C,port.D,port.E,port.F",
-#                             }
-#                         },
-#                         "returns": {
-#                             "name": "the color sensed by the color sensor",
-#                             "values": "color.RED,color.GREEN,color.BLUE,color.MAGENTA,color.YELLOW,color.ORANGE,color.AZURE,color.BLACK,color.WHITE",
-#                         },
-#                     },
-#                     {
-#                         "name": "Reflection",
-#                         "syntax": "color_sensor.reflection(port.A)",
-#                         "initialization": "none",
-#                         "parameters": {
-#                             "parameter": {
-#                                 "name": "Port",
-#                                 "description": "Port of spike prime to which color sensor is connected",
-#                                 "values": "port.A,port.B,port.C,port.D,port.E,port.F",
-#                             }
-#                         },
-#                         "returns": {
-#                             "name": "the intensity of light sensed by the color sensor",
-#                             "values": "integer 1:100",
-#                         },
-#                     },
-#                 ],
-#             },
-#             {
-#                 "name": "motor_pair",
-#                 "description": "a class that allows controlling two spike prime motors together",
-#                 "initialization": "motor_pair.pair(motor_pair.PAIR_1, port.A, port.B)",
-#                 "required imports": "import motor_pair \n from hub import port",
-#                 "function": [
-#                     {
-#                         "name": "Move motor pair for degrees",
-#                         "syntax": "motor_pair.move_for_degrees(motor_pair.PAIR_1, 90, 0, velocity=200)",
-#                         "parameters": {
-#                             "parameter": [
-#                                 {
-#                                     "name": "Motor Pair",
-#                                     "description": "Specification of which motor pair to move",
-#                                     "values": "motor_pair.PAIR_1, motor_pair.PAIR_2",
-#                                 },
-#                                 {
-#                                     "name": "Degrees",
-#                                     "description": "Degrees for which the motor pair should turn.",
-#                                     "values": "any integer",
-#                                 },
-#                                 {
-#                                     "name": "Steering",
-#                                     "description": "How much the motor pair should alter motor speeds to turn",
-#                                     "values": "an integer -100:100",
-#                                 },
-#                                 {
-#                                     "name": "Velocity",
-#                                     "description": "Speed at which the motors should run in degrees per second.",
-#                                     "values": "any integer",
-#                                 },
-#                             ]
-#                         },
-#                     },
-#                     {
-#                         "name": "Move motor pair for time",
-#                         "syntax": "motor_pair.move_for_time(motor_pair.PAIR_1, 1000, 0, velocity=200)",
-#                         "parameters": {
-#                             "parameter": [
-#                                 {
-#                                     "name": "Motor Pair",
-#                                     "description": "Specification of which motor pair to move",
-#                                     "values": "motor_pair.PAIR_1, motor_pair.PAIR_2",
-#                                 },
-#                                 {
-#                                     "name": "Time",
-#                                     "description": "Duration for which motors should turn in milliseconds (1000 = 1 second)",
-#                                     "values": "any integer",
-#                                 },
-#                                 {
-#                                     "name": "Steering",
-#                                     "description": "How much the motor pair should alter motor speeds to turn",
-#                                     "values": "an integer -100:100",
-#                                 },
-#                                 {
-#                                     "name": "Velocity",
-#                                     "description": "Speed at which the motors should run in degrees per second.",
-#                                     "values": "any integer",
-#                                 },
-#                             ]
-#                         },
-#                     },
-#                 ],
-#             },
-#             {
-#                 "name": "distance_sensor",
-#                 "description": "a class that allows access to spike prime distance sensors",
-#                 "initialization": "none",
-#                 "required imports": "from hub import distance_sensor \n from hub import port",
-#                 "function": {
-#                     "name": "Get distance",
-#                     "syntax": "distance_sensor.distance(port.A)",
-#                     "parameters": {
-#                         "parameter": {
-#                             "name": "Port",
-#                             "description": "Port of spike prime to which distance sensor is connected",
-#                             "values": "port.A,port.B,port.C,port.D,port.E,port.F",
-#                         }
-#                     },
-#                     "returns": {
-#                         "name": "the distance measured by the sensor in millimeters. If the distance sensor cannot read a valid distance it will return -1",
-#                         "values": "integer",
-#                     },
-#                 },
-#             },
-#             {
-#                 "name": "motion_sensor",
-#                 "description": "a class that allows access to spike prime motion sensors",
-#                 "initialization": "none",
-#                 "required imports": "from hub import motion_sensor \n from hub import port",
-#                 "function": [
-#                     {
-#                         "name": "Acceleration",
-#                         "syntax": "motion_sensor.acceleration()",
-#                         "parameters": "none",
-#                         "returns": {
-#                             "name": "a tuple containing x, y & z acceleration values as integers. The values are mili G, so 1 / 1000 G",
-#                             "values": "[int, int, int]",
-#                         },
-#                     },
-#                     {
-#                         "name": "Tilt angles",
-#                         "syntax": "motion_sensor.tilt_angles()",
-#                         "parameters": "none",
-#                         "returns": {
-#                             "name": "a tuple containing yaw pitch and roll values as integers. Values are decidegrees",
-#                             "values": "[int, int, int]",
-#                         },
-#                     },
-#                     {
-#                         "name": "Angular Velocity",
-#                         "syntax": "motion_sensor.angular_velocity()",
-#                         "parameters": "none",
-#                         "returns": {
-#                             "name": "a tuple containing x, y & z angular velocity values as integers. The values are decidegrees per second",
-#                             "values": "[int, int, int]",
-#                         },
-#                     },
-#                 ],
-#             },
-#             {
-#                 "name": "sound",
-#                 "description": "a class that enables control of built in SPIKE Prime speakers",
-#                 "initialization": "none",
-#                 "required imports": "from hub import sound \n from hub import port",
-#                 "function": [
-#                     {
-#                         "name": "beep",
-#                         "syntax": "sound.beep(freq: int = 440, duration: int = 500, volume: int = 100)",
-#                         "parameters": [
-#                             {
-#                                 "name": "freq",
-#                                 "description": "Frequency of beep",
-#                                 "values": "positive integer",
-#                             },
-#                             {
-#                                 "name": "duration",
-#                                 "description": "length of beep in milliseconds",
-#                                 "values": "positive integer",
-#                             },
-#                             {
-#                                 "name": "volume",
-#                                 "description": "volume of beep",
-#                                 "values": "integer 1:100",
-#                             },
-#                         ],
-#                         "returns": "none",
-#                     }
-#                 ],
-#             },
-#         ]
-#     }
-# }
 
-# complexJson = json.dumps(complexDict, indent=2)
+async def main():
+    thread_id = "your_thread_id_here"
+    run_id = "your_run_id_here"
+    queue = asyncio.Queue()
 
-# Writing to sample.json
-# with open("sample.json", "w") as outfile:
-#     outfile.write(complexJson)
+    # Create a list to keep track of tasks
+    tasks = []
 
-# file = open("queryDict.json")
-# queryDict = json.loads(file.decode("utf-8"))
-queryDict = json.load(open("queryDict.json", "r"))
-# print(queryDict["codingGuide"]["class"][0])
+    # Start the status check loop
+    status_task = asyncio.create_task(status_check(thread_id, run_id, queue))
+    tasks.append(status_task)
 
-for aClass in queryDict["class"]:
-    if aClass["name"] == "motor":
-        print(aClass)
+    # Start the response processing task
+    process_task = asyncio.create_task(process_responses(queue, tasks))
+    tasks.append(process_task)
+
+    # Wait for all tasks to complete
+    await asyncio.gather(*tasks, return_exceptions=True)
+
+
+asyncio.run(main())
