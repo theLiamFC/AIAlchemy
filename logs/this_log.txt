@@ -2,4 +2,89 @@
 
 
 
-PROGRAM OUTPUT FROM 2024-04-17 12:56:35
+PROGRAM OUTPUT FROM 2024-03-16 13:22:50
+
+ - Status: THREAD_ID: thread_L4KHsDmvO1VQC7j5pV2MBUAd
+ - Status: Adding message
+ - Status: Creating new run
+ - Status: Run in progress
+ - Status: Status: requires_action
+ - Status: Managing functions
+{
+"query": "force_sensor"
+}
+ChatGPT: I am querying documentation for force_sensor
+{'name': 'force_sensor', 'description': 'a class that allows access to spike prime force sensors', 'initialization': 'none', 'required imports': 'import force_sensor \n from hub import port', 'function': [{'name': 'get force', 'syntax': 'force_sensor.force(port.A)', 'parameters': {'parameter': {'name': 'Port', 'description': 'Port of spike prime to which force sensor is connected', 'values': 'port.A,port.B,port.C,port.D,port.E,port.F'}}, 'returns': {'name': 'the force measured as a decinewton', 'values': 'integer 0-100'}}, {'name': 'pressed', 'syntax': 'force_sensor.pressed(port.A)', 'parameters': {'parameter': {'name': 'Port', 'description': 'Port of spike prime to which force sensor is connected', 'values': 'port.A,port.B,port.C,port.D,port.E,port.F'}}, 'returns': {'name': 'a binary value indicating if the sensor is pressed or not. Will return true if pressed', 'values': 'boolean'}}]}
+Submitting tool outputs: [{'tool_call_id': 'call_4bUqFMqh5Ixs0THfdysYYQXT', 'output': '{"name": "force_sensor", "description": "a class that allows access to spike prime force sensors", "initialization": "none", "required imports": "import force_sensor \\n from hub import port", "function": [{"name": "get force", "syntax": "force_sensor.force(port.A)", "parameters": {"parameter": {"name": "Port", "description": "Port of spike prime to which force sensor is connected", "values": "port.A,port.B,port.C,port.D,port.E,port.F"}}, "returns": {"name": "the force measured as a decinewton", "values": "integer 0-100"}}, {"name": "pressed", "syntax": "force_sensor.pressed(port.A)", "parameters": {"parameter": {"name": "Port", "description": "Port of spike prime to which force sensor is connected", "values": "port.A,port.B,port.C,port.D,port.E,port.F"}}, "returns": {"name": "a binary value indicating if the sensor is pressed or not. Will return true if pressed", "values": "boolean"}}]}'}]
+ - Status: Done submitting outputs
+ - Status: Using existing run
+ - Status: Run in progress
+ - Status: Status: requires_action
+ - Status: Managing functions
+{
+"query": "distance_sensor"
+}
+ChatGPT: I am querying documentation for distance_sensor
+{'name': 'distance_sensor', 'description': 'a class that allows access to spike prime distance sensors', 'initialization': 'none', 'required imports': 'import distance_sensor \n from hub import port', 'function': {'name': 'get distance', 'syntax': 'distance_sensor.distance(port.A)', 'parameters': {'parameter': {'name': 'Port', 'description': 'Port of spike prime to which distance sensor is connected', 'values': 'port.A,port.B,port.C,port.D,port.E,port.F'}}, 'returns': {'name': 'the distance measured by the sensor in millimeters. If the distance sensor cannot read a valid distance it will return -1', 'values': 'integer'}}}
+Submitting tool outputs: [{'tool_call_id': 'call_N5OCrAbzVwYCM0jtVfsuCLox', 'output': '{"name": "distance_sensor", "description": "a class that allows access to spike prime distance sensors", "initialization": "none", "required imports": "import distance_sensor \\n from hub import port", "function": {"name": "get distance", "syntax": "distance_sensor.distance(port.A)", "parameters": {"parameter": {"name": "Port", "description": "Port of spike prime to which distance sensor is connected", "values": "port.A,port.B,port.C,port.D,port.E,port.F"}}, "returns": {"name": "the distance measured by the sensor in millimeters. If the distance sensor cannot read a valid distance it will return -1", "values": "integer"}}}'}]
+ - Status: Done submitting outputs
+ - Status: Using existing run
+ - Status: Run in progress
+ - Status: Status: requires_action
+ - Status: Managing functions
+{
+"query": "sound"
+}
+ChatGPT: I am querying documentation for sound
+{'name': 'sound', 'description': 'a class that enables control of built in SPIKE Prime speakers', 'initialization': 'none', 'required imports': 'from hub import sound \n from hub import port', 'function': [{'name': 'beep', 'syntax': 'sound.beep(freq: int = 440, duration: int = 500, volume: int = 100)', 'parameters': [{'name': 'freq', 'description': 'Frequency of beep', 'values': 'positive integer'}, {'name': 'duration', 'description': 'length of beep in milliseconds', 'values': 'positive integer'}, {'name': 'volume', 'description': 'volume of beep', 'values': 'integer 1:100'}], 'returns': 'none'}]}
+Submitting tool outputs: [{'tool_call_id': 'call_9nSh2gmu2RQgnIfDi8iTvzy0', 'output': '{"name": "sound", "description": "a class that enables control of built in SPIKE Prime speakers", "initialization": "none", "required imports": "from hub import sound \\n from hub import port", "function": [{"name": "beep", "syntax": "sound.beep(freq: int = 440, duration: int = 500, volume: int = 100)", "parameters": [{"name": "freq", "description": "Frequency of beep", "values": "positive integer"}, {"name": "duration", "description": "length of beep in milliseconds", "values": "positive integer"}, {"name": "volume", "description": "volume of beep", "values": "integer 1:100"}], "returns": "none"}]}'}]
+ - Status: Done submitting outputs
+ - Status: Using existing run
+ - Status: Run in progress
+ - Status: Status: requires_action
+ - Status: Managing functions
+{
+"code": "import distance_sensor \n from hub import sound, port \n import force_sensor \n while True: \n     if (force_sensor.pressed(port.C)): \n         sound.beep(freq=distance_sensor.distance(port.F)*10, volume=30)",
+"runtime": "10"
+}
+=========================== RUNNING CODE (10 second(s)) ===========================
+import distance_sensor 
+from hub import sound, port 
+import force_sensor 
+while True: 
+    if (force_sensor.pressed(port.C)): 
+        sound.beep(freq=distance_sensor.distance(port.F)*10, volume=30)
+RESETTING
+ - Status: 
+ - Status: Paste mode start: 
+================================== SERIAL OUPUT ===================================
+ - Status: Paste mode end: 
+
+ - Status: 
+======================================= END =======================================
+
+ - Status: Program ended
+Submitting tool outputs: [{'tool_call_id': 'call_yaGTj9Py3cOVQMzt8Z07RaKN', 'output': ''}]
+ - Status: Done submitting outputs
+ - Status: Using existing run
+ - Status: Run in progress
+ - Status: Status: requires_action
+ - Status: Managing functions
+{
+"prompt": "Was the theremin working properly? Did it stop making sound when I pressed the force sensor?"
+}
+ChatGPT: Hey Human, Was the theremin working properly? Did it stop making sound when I pressed the force sensor?
+Submitting tool outputs: [{'tool_call_id': 'call_55tEqSYanaA6wWlosw2Gixse', 'output': 'yes'}]
+ - Status: Done submitting outputs
+ - Status: Using existing run
+ - Status: Run in progress
+ - Status: Status: completed
+ - Status: Adding message
+ - Status: Creating new run
+ - Status: Run in progress
+ - Status: Status: completed
+ - Status: Adding message
+ - Status: Creating new run
+ - Status: Run in progress
+ - Status: Status: completed
+ - Status: Closing

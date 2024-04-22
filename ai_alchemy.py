@@ -1,35 +1,23 @@
-from openai import AsyncOpenAI
+from openai import OpenAI
 import cv2 as cv
 import time
 import asyncio
 import json
 import base64
 import re
-from serial_interface import SerialInterface
 from PIL import Image
 from io import BytesIO
-import sys
 
 
 class AIAlchemy:
     def __init__(
-        self, role, task, device, serial_port, thread_id=None, debug=False, verbose=False
+        self, assistant_id, serial, thread_id=None, debug=False, verbose=False
     ):
         # Class assets
         self.query_dict = json.load(open("query_dict.json", "r"))
-        # self.cam = cv.VideoCapture(0)
-        self.thread_id = thread_id
-        self.out_mail = None
-        self.in_mail = task
+        self.cam = cv.VideoCapture(0)
 
-        # Serial Initiation
-        # Instantiate Serial Interface
-        try:
-            serial = SerialInterface(serial_port, fake_serial=False)
-        except Exception as e:
-            print("Serial Connection Error: ", e)
-            sys.exit()
-
+        # Serial initiation
         self.serial_interface = serial
         self.serial_interface.open_new()
         self.serial_interface.write_read("\x03")
@@ -44,111 +32,73 @@ class AIAlchemy:
         log_path = "logs/"
         self.this_log = open(log_path + "this_log.txt", "w+")  # write (and read) over this file
         self.good_log = open(log_path + "good_log.txt", "a")  # append to this files
-        self.all_log = open(log_path + "all_log.txt", "a")  # append to this files
-
+        self.all_log  = open(log_path + "all_log.txt", "a")  # append to this files
+        
         formatted_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
         self.log_print(f"\n\n\nPROGRAM OUTPUT FROM {formatted_time}\n")
 
-        # other variables
-        self.CEO_ID    = "asst_CxlSfepjkDuK54otqmh3zsfV"
-        self.WORKER_ID = "asst_gCp1YejKuc6X1progQ99C2fL"
-
         # Core variables
-        self.client = AsyncOpenAI()
-        if role == "ceo":
-            self.assistant_id = self.CEO_ID
-            self.ceo_status = True
-        elif role == "worker":
-            self.assistant_id = self.WORKER_ID
-            self.ceo_status = False
-        else:
-            raise Exception("invalid role, use 'ceo' or 'worker'")
-
-
+        self.client = OpenAI()
+        self.assistant_id = assistant_id
         self.run_id = None
-        self.workers = []
-
-        self.task = task
-        self.device = device
-
+        if thread_id == None:
+            new_thread = self.client.beta.threads.create()
+            self.thread_id = new_thread.id
+            self.debug_print(f"THREAD_ID: {self.thread_id}")
+        else:
+            self.thread_id = thread_id
 
 
     ################################################################
     ####################   PUBLIC FUNCTIONS   ######################
     ################################################################
 
-    async def run(self):
-        await asyncio.run(self.get_thread())
-        print("entering run")
-        while True:
-            # check mailbox
-            # if mailbox is full do a run with that message and put back in the mailbox
-            self.log_print("checking mail box: " + str(self.in_mail))
-            if self.in_mail != None:
-                self.log_print("running")
-                message = self.in_mail
-                self.in_mail = None
-                self.out_mail = await self.run_thread(message)
-            else:
-                await asyncio.sleep(0.5)
-
-    async def run_thread(self, message):
-        print("in run_thread")
-        await self.add_message(message)
-        result = await self.__run_manager()
-        return result
-
-    async def add_message(self, message):
-        self.debug_print("Adding message")
-        await self.client.beta.threads.messages.create(
-            self.thread_id,
-            role="user",
-            content=message,
-        )
-
-    async def get_thread(self):
-        if self.thread_id == None:
-            newThread = await self.client.beta.threads.create()
-            self.thread_id = newThread.id
-            self.debug_print(f"THREAD_ID: {self.thread_id}")
-        else:
-            self.thread_id = self.thread_id
-
     # Change model of current assistant
-    async def change_model(self, modelNum):
+    def change_model(self, modelNum):
         models = ["gpt-4-turbo-preview", "gpt-4", "gpt-3.5-turbo-0125"]
-        await self.client.beta.assistants.update(
+        self.client.beta.assistants.update(
             self.assistant_id,
             model=models[modelNum],
         )
 
     # Retreive assistants for purpose of finding IDs
-    async def get_assistants(self):
-        my_assistants = await self.client.beta.assistants.list(
+    def get_assistants(self):
+        my_assistants = self.client.beta.assistants.list(
             order="desc",
             limit="20",
         )
         return my_assistants.data
 
     # Retrieve all runs in a current thread
-    async def get_runs(self):
-        runs = await self.client.beta.threads.runs.list(self.thread_id)
+    def get_runs(self):
+        runs = self.client.beta.threads.runs.list(self.thread_id)
         return runs
 
     # Kills all runs that are in progress or requiring action
-    async def kill_all_runs(self):
-        runs = await self.get_runs()
+    def kill_all_runs(self):
+        runs = self.get_runs()
         for run in runs.data:
             if run.status == "in_progress" or run.status == "requires_action":
-                await self.client.beta.threads.runs.cancel(
+                self.client.beta.threads.runs.cancel(
                     thread_id=self.thread_id, run_id=run.id
                 )
 
     # Public Debugging Function
+    # Add message to current thread
+    def add_message(self, message):
+        self.debug_print("Adding message")
+        self.client.beta.threads.messages.create(
+            self.thread_id,
+            role="user",
+            content=message,
+        )
+
+    # Public Debugging Function
     # Get most recent message from the thread
-    async def get_message(self):
-        messages = await self.client.beta.threads.messages.list(self.thread_id)
+    def get_message(self):
+        messages = self.client.beta.threads.messages.list(self.thread_id)
         return messages.data[0].content[0].text.value
+
 
     ################################################################
     ###################   PRIVATE FUNCTIONS   ######################
@@ -158,9 +108,9 @@ class AIAlchemy:
     async def __run_manager(self):
         if self.run_id == None:  # check for existing run
             self.debug_print("Creating new run")
-            run = await self.client.beta.threads.runs.create(
+            run = self.client.beta.threads.runs.create(
                 thread_id=self.thread_id, assistant_id=self.assistant_id
-            ) 
+            )  # BUG FREEZING HERE
             self.run_id = run.id
         else:
             self.debug_print("Using existing run")
@@ -171,10 +121,9 @@ class AIAlchemy:
         # exits upon completion, failure, or tool call response required
         last_time = time.time()
         while status not in ["completed", "failed", "requires_action"]:
-            response = await self.client.beta.threads.runs.retrieve(
+            status = self.client.beta.threads.runs.retrieve(
                 thread_id=self.thread_id, run_id=self.run_id
-            )
-            status = response.status
+            ).status  # BUG this api call seems to be FREEZING code occasionally
             if self.debug and time.time() - last_time > 5:
                 self.debug_print(f"Longer than normal runtime: {status}")
                 last_time = time.time()
@@ -184,16 +133,19 @@ class AIAlchemy:
 
         # run no longer in progress, handle each possible run condition
         if status == "requires_action":  # delegate tool calls to __function_manager()
-            response = await self.client.beta.threads.runs.retrieve(
+            calls = self.client.beta.threads.runs.retrieve(
                 thread_id=self.thread_id, run_id=self.run_id
-            )
-            calls = response.required_action
-            await self.__function_manager(calls)
+            ).required_action  # also FREEZING after this call
+            self.__function_manager(calls)
             return await self.__run_manager()
         elif status == "completed":  # return response
             self.run_id = None
-            response = await self.client.beta.threads.messages.list(self.thread_id)
-            return response.data[0].content[0].text.value
+            return (
+                self.client.beta.threads.messages.list(self.thread_id)
+                .data[0]
+                .content[0]
+                .text.value
+            )
         elif status == "failed":  # something went wrong
             # BUG should probably handle this better
             # and retry run up to max attempts
@@ -201,13 +153,13 @@ class AIAlchemy:
             self.run_id = None
             self.reg_print("Run failed")
             self.reg_print(
-                await self.client.beta.threads.runs.retrieve(
+                self.client.beta.threads.runs.retrieve(
                     thread_id=self.thread_id, run_id=run.id
                 )
             )
 
     # Handle tool call responses
-    async def __function_manager(self, calls):
+    def __function_manager(self, calls):
         self.debug_print("Managing functions")
         self.this_log.flush()
 
@@ -222,43 +174,34 @@ class AIAlchemy:
             name = toolCall.function.name
             self.verbose_print(toolCall.function.arguments)
             args = self.__clean_json(toolCall.function.arguments)
-
+            
             # handling for each available function call
             if name == "get_feedback":
                 # print arg to command line and get written response from human
                 self.reg_print(f"ChatGPT: Hey Human, {args['prompt']}")
-                self.out_mail = args['prompt']
-                while self.in_mail == None:
-                    self.log_print("waiting for response")
-                    await asyncio.sleep(0.2)
-                tool_outputs.append({"tool_call_id": id, "output": self.in_mail})
-                self.log_print("sent mail: "+self.in_mail)
-                self.in_mail = None
+                human_response = input("Human: ")
+                print()
+                tool_outputs.append({"tool_call_id": id, "output": human_response})
             elif name == "get_documentation":
-                query = args["query"].lower()
                 self.reg_print(
-                    f"ChatGPT: I am querying documentation for {query} on {self.device}"
+                    f"ChatGPT: I am querying documentation for {args['query'].lower()}"
                 )
 
                 # search query_dict json file for requested term
                 # BUG if chat has issues requesting exact term we could introduce
                 # a semantic relation search upon 0 zero result
-                if self.device == "SPIKE":
-                    if query == "help":
-                        query_response = "[motor, motor_pair, color_sensor, distance_sensor, motion_sensor, force_sensor, sound, light_matrix, runloop]"
+                for aClass in self.query_dict["class"]:
+                    if aClass["name"] == args["query"].lower():
+                        query_response = aClass
+                        break
                     else:
-                        for aClass in self.query_dict["class"]:
-                            if aClass["name"] == query:
-                                query_response = aClass
-                                break
-                            else:
-                                query_response = (
-                                    "No available information on "
-                                    + query
-                                    + ". Try rephrasing the term you are querying, \
-                                        for example changing underscores or phrasing, \
-                                        or alternatively ask the human for help."
-                                )
+                        query_response = (
+                            "No available information on "
+                            + args["query"].lower()
+                            + ". Try rephrasing the term you are querying, \
+                                for example changing underscores or phrasing, \
+                                or alternatively ask the human for help."
+                        )
                 self.verbose_print(query_response)
                 tool_outputs.append(
                     {"tool_call_id": id, "output": json.dumps(query_response)}
@@ -292,19 +235,14 @@ class AIAlchemy:
                 tool_outputs.append(
                     {"tool_call_id": id, "output": json.dumps(img_response)}
                 )
-            elif name == "create_worker":
-                serial = args['serial']
-                task = args['prompt']
-                this_worker = AIAlchemy("worker", serial, debug=False, verbose=False)
-                # asyncio.run(this_worker.run_thread(args['prompt']))
-                self.workers.append(this_worker)
 
         # submit all collected tool call responses
         self.verbose_print(f"Submitting tool outputs: {tool_outputs}")
-        await self.client.beta.threads.runs.submit_tool_outputs(
+        self.client.beta.threads.runs.submit_tool_outputs(
             thread_id=self.thread_id, run_id=self.run_id, tool_outputs=tool_outputs
-        ) 
+        )  # BUG also FREEZING here
         self.debug_print("Done submitting outputs")
+
 
     ################################################################
     #####################   IMAGE CAPTURE   ########################
@@ -329,10 +267,10 @@ class AIAlchemy:
         # collect images from webcam
         self.debug_print("Taking images IN 3 seconds")
         time.sleep(3)
-
+        
         # NOTE to Liam: I (Jesse) added the code running and related serial sending
-        # to a separate function, the only difference this makes here is that
-        # it does the same printing as above which maybe isn't wanted?
+            # to a separate function, the only difference this makes here is that 
+            # it does the same printing as above which maybe isn't wanted?
         repl = self.__run_code(self.curr_code, num * interval)
         # self.verbose_print(f"REPL response: {repl}")
 
@@ -376,6 +314,7 @@ class AIAlchemy:
         self.debug_print("Done")
         return response
 
+
     ################################################################
     #####################   CODE RUNNING   #########################
     ################################################################
@@ -412,7 +351,11 @@ class AIAlchemy:
             lines = temp_response.split("\n")
             for line in lines:
                 line = line.strip()
-                if line != "" and ">>>" not in line and "<awaitable>" not in line:
+                if (
+                    line != ""
+                    and ">>>" not in line
+                    and "<awaitable>" not in line
+                ):
                     self.reg_print(line)
                     serial_response += "\n" + line
             time.sleep(0.5)
@@ -428,6 +371,7 @@ class AIAlchemy:
 
         self.debug_print("Program ended")
         return serial_response
+
 
     ################################################################
     ####################   LOGGING FUNCTIONS   #####################
@@ -457,7 +401,7 @@ class AIAlchemy:
             suffix = ""
         result = breaker + " " + name + " " + breaker + suffix
         return result
-
+    
     # If the AI assistant returns incorrectly formatted JSON clean before returning
     def __clean_json(self, json_text):
         try:
@@ -494,7 +438,12 @@ class AIAlchemy:
         if "<awaitable>" not in text:
             self.this_log.write("\n" + str(text))
             self.all_log.write("\n" + str(text))
-        self.this_log.flush()
+
+    # Public method to start the OpenAI run asynchronously
+    async def run(self, message):
+        self.add_message(message)
+        result = await self.__run_manager()
+        return result
 
     # Safely end program and save and close log files
     def close(self):

@@ -1,11 +1,11 @@
 from ai_alchemy import AIAlchemy
+from serial_interface import SerialInterface
 import asyncio
 import sys
 import json
-import time
+
 ### AI Alchemist Assistant ID - this is NOT an API key
-# SPIKE_ID = "asst_8WN5ksXpnNaBeAr1IKrLq4yd"
-# WORKER_ID = "asst_gCp1YejKuc6X1progQ99C2fL"
+assitant_id = "asst_8WN5ksXpnNaBeAr1IKrLq4yd"
 
 default_messages = {
     "0": "Move forwards in a loop. There are motors in ports A and B",
@@ -18,15 +18,20 @@ and then it backs up, turns and moves forwards again. There are motors in ports 
     "6": "I am placing the robot on a seesaw platform, balance at the center of the platform",
 }
 
-'''
+
 # Main interface loop
 async def interface_loop(ai_interface):
-    intro_statement = "ChatGPT: What would you like to code today?\n"
+    use_cam = False
+    additional_instructions = ""
+    yes_cam = "Use the get_visual_feedback function to confirm what the robot is doing"
+    no_cam  = "Don't use the get_visul_feedback, just use get_feedback"
+    additional_instructions += yes_cam if use_cam else no_cam
+    intro_statement = "ChatGPT: What would you like your spike prime to do today?\n"
     input_statement = (
         "['e','exit'] to stop the program.\n['help'] to see example prompts\n\nHuman: "
     )
 
-    # Clear terminal screen
+    # Reset terminal screen
     for i in range(20):
         print("\n")
     user_prompt = input(intro_statement + input_statement)
@@ -48,55 +53,29 @@ async def interface_loop(ai_interface):
             print(f"Using default message: {user_prompt}\n")
 
         # Call ChatGPT with prompt
-        result = await ai_interface.run_thread(user_prompt)
+        result = await ai_interface.run(user_prompt + additional_instructions)
         print("ChatGPT: " + result)
 
         user_prompt = input(input_statement)
         print()
-'''
 
-async def run_assistant(ai_interface):
-    result = await ai_interface.run()
-    return result
 
-async def check_mailbox(ai_interface):
-    while True:
-        print("checkingasdfgh: " + str(ai_interface.out_mail))
-        if ai_interface.out_mail != None:
-            print("ChatGPT: " + str(ai_interface.out_mail))
-            print("entering input")
-            ai_interface.out_mail = None
-            ai_interface.in_mail = input("Human: ")
-        else:
-            await asyncio.sleep(0.5)    
-
+# Run the main function in the event loop
 if __name__ == "__main__":
     #### CHANGE SERIAL PORT HERE ####
-    serial_port = "/dev/cu.usbmodem3356396133381"
+    # port = "/dev/cu.usbmodem3356396133381"
+    port = "COM13"
+
+    # Instantiate Serial Interface
+    try:
+        serial = SerialInterface(port, fake_serial=True)
+    except Exception as e:
+        print("Serial Connection Error: ", e)
+        sys.exit()
 
     # Instantiate AIAlchemy Class
-    task = default_messages["0"]
-    device = "SPIKE"
-    role = "ceo"
-    ai_interface = AIAlchemy(role, task, device, serial_port, debug=False, verbose=False)
+    ai_interface = AIAlchemy(assitant_id, serial, debug=False, verbose=False)
 
-    # start loop
-    fred = asyncio.new_event_loop()
-    fred.create_task(check_mailbox(ai_interface))
-    fred.create_task(run_assistant(ai_interface))
-    fred.run_forever()
-    
-    # asyncio.run(check_mailbox(ai_interface))
-    # asyncio.run(run_assistant(ai_interface))
-
-    # task1 = asyncio.create_task(run_assistant(ai_interface))
-    # task2 = asyncio.create_task(check_mailbox(ai_interface))
-
-    # # Wait for both tasks to complete (this will effectively wait forever unless you break the loop within the tasks)
-    # asyncio.gather(task1, task2)
-
-    time.sleep(100)
-    sys.exit()
     # Initiate Main Loop
     try:
         asyncio.run(interface_loop(ai_interface))
@@ -104,4 +83,3 @@ if __name__ == "__main__":
         print("Main Loop Error: ", e)
     finally:
         ai_interface.close()
- 
