@@ -63,12 +63,12 @@ async def interface_loop(ai_interface):
 # Run the main function in the event loop
 if __name__ == "__main__":
     #### CHANGE SERIAL PORT HERE ####
-    # port = "/dev/cu.usbmodem3356396133381"
-    port = "COM13"
+    port = "/dev/cu.usbmodem3356396133381"
+    #port = "COM13"
 
     # Instantiate Serial Interface
     try:
-        serial = SerialInterface(port, fake_serial=True)
+        serial = SerialInterface(port, fake_serial=False)
     except Exception as e:
         print("Serial Connection Error: ", e)
         sys.exit()
