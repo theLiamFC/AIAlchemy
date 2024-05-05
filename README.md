@@ -1,5 +1,7 @@
 # OpenAI ChatGPT Robot Coding Interface
 
+**See our project write-up and demo videos [here](https://jessewgilbert.com/ai-alchemy-demo)**
+
 This repository is a work in progress authored by Jesse Gilbert and Liam Campbell for the Center for Engineering & Education Outreach ([CEEO](https://ceeo.tufts.edu/)) at Tufts University.
 
 ### Introduction
