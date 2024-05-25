@@ -1,4 +1,4 @@
-# OpenAI ChatGPT Robot Coding Interface
+# Research in Autonomous AI Driven Robotics
 
 **See our project write-up and demo videos [here](https://jessewgilbert.com/294c737d316f4b9d8a770d69897d39aa)**
 
@@ -6,13 +6,13 @@ This repository is authored by [Jesse Gilbert](https://jessewgilbert.com/) and [
 
 ### Introduction
 
-**This project aims to explore the role that AI can play in coding robotics in two parts…**
+This project aims to explore the role that AI can play in coding robotics in two parts…
 
-**Program for AI Robotics Engineering ([PARE](https://www.notion.so/Research-in-Autonomous-AI-Driven-Robotics-294c737d316f4b9d8a770d69897d39aa?pvs=21)):**
+#### **Program for AI Robotics Engineering (PARE) - This repo:**
 
 Focuses on the core capabilities of AI-programmed robotics, such as **autonomous decision making**, **direct hardware control,** **iterative coding**, and **independent verification** of success.
 
-**Scaffolded Program for AI Robotics Engineering ([SPARE](https://www.notion.so/Research-in-Autonomous-AI-Driven-Robotics-294c737d316f4b9d8a770d69897d39aa?pvs=21)):**
+#### **Scaffolded Program for AI Robotics Engineering (SPARE) - Repo [here](https://github.com/theLiamFC/SPARE):**
 
 Builds on the foundation of PARE but introduces a **network** of manager and worker AI Assistants. This **hierarchical system** experiments with the execution of **more complex tasks**, that address multiple microcontrollers, by delegating them to sub-workers and **abstracting** them from the user.
 
