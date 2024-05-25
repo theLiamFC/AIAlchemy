@@ -1,12 +1,20 @@
 # OpenAI ChatGPT Robot Coding Interface
 
-**See our project write-up and demo videos [here](https://jessewgilbert.com/ai-alchemy-demo)**
+**See our project write-up and demo videos [here](https://jessewgilbert.com/294c737d316f4b9d8a770d69897d39aa)**
 
-This repository is a work in progress authored by Jesse Gilbert and Liam Campbell for the Center for Engineering & Education Outreach ([CEEO](https://ceeo.tufts.edu/)) at Tufts University.
+This repository is authored by [Jesse Gilbert](https://jessewgilbert.com/) and [Liam Campbell](https://liamfcampbell.com/) for the Center for Engineering & Education Outreach ([CEEO](https://ceeo.tufts.edu/)) at Tufts University.
 
 ### Introduction
 
-This project aims to facilitate collaboration between humans and artificial intelligence in coding robotics applications, specifically targeting the LEGO SPIKE Prime platform. By leveraging OpenAI's Assistant framework (which uses GPT-4), users can iteratively build programs alongside the AI, fostering learning opportunities for the user and accelerating robotic software projects. The program importantly flips the role of the user and AI, and enables AI to utilize the user as a resource for iterative coding development. In addition to asking the user for feedback, advice, and prompts, the AI is also enabled to query documentation, run code, and get visual feedback from a secondary OpenAI vision model.
+**This project aims to explore the role that AI can play in coding robotics in two parts…**
+
+**Program for AI Robotics Engineering ([PARE](https://www.notion.so/Research-in-Autonomous-AI-Driven-Robotics-294c737d316f4b9d8a770d69897d39aa?pvs=21)):**
+
+Focuses on the core capabilities of AI-programmed robotics, such as **autonomous decision making**, **direct hardware control,** **iterative coding**, and **independent verification** of success.
+
+**Scaffolded Program for AI Robotics Engineering ([SPARE](https://www.notion.so/Research-in-Autonomous-AI-Driven-Robotics-294c737d316f4b9d8a770d69897d39aa?pvs=21)):**
+
+Builds on the foundation of PARE but introduces a **network** of manager and worker AI Assistants. This **hierarchical system** experiments with the execution of **more complex tasks**, that address multiple microcontrollers, by delegating them to sub-workers and **abstracting** them from the user.
 
 ### Usage
 
