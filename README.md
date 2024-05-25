@@ -35,9 +35,9 @@ To use this repository, follow these steps:
 
 ### File Descriptions
 
-`ai_alchemy.py`: Contains the main class openAIAlchemy, which interfaces with the OpenAI API for communication.
+main.py: Orchestrates the interaction between the user and the AI assistant in the AiAlchemy class.
 
-`main.py`: Orchestrates the interaction between the user, ChatGPT, and the robot coding interface.
+`ai_alchemy.py`: Contains the class AIAlchemy, which provides the framework for OpenAI's AI model to interface with the user, the robot, documentation, etc.
 
 `serial_interface.py`: Handles all serial communication between the computer and LEGO SPIKE Prime.
 
